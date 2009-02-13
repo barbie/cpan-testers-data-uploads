@@ -1,0 +1,15 @@
+Revision history for Perl module CPAN::Testers::Data::Uploads.
+
+0.04	current
+	- changed to more formal package release.
+
+0.03	29/12/2008
+	- renamed Article reference.
+
+0.02	18/11/2008
+	- added multiple backup mechanism.
+	- added documentation.
+	- abstracted sources into configuration file.
+
+0.01	10/11/2008
+	- initial release
