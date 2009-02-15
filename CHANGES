@@ -1,6 +1,9 @@
 Revision history for Perl module CPAN::Testers::Data::Uploads.
 
-0.04	current
+0.05	current
+	- added missing DBD prerequisites.
+
+0.04	13/02/2009
 	- changed to more formal package release.
 
 0.03	29/12/2008
