@@ -7,6 +7,7 @@ lib/CPAN/Testers/Data/Uploads.pm
 Makefile.PL
 MANIFEST
 META.yml
+README
 t/01base.t
 t/05setup_db-uploads.t
 t/09setup-expected.t
