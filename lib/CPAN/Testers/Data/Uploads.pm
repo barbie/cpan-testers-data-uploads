@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.06';
+$VERSION = '0.07';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -38,7 +38,14 @@ my %phrasebook = (
     'DeleteAll'         => 'DELETE FROM uploads',
     'SelectAll'         => 'SELECT * FROM uploads',
 
-    'CreateTable'       => 'CREATE TABLE uploads (type text, author text, dist text, version text, filename text, released int)',
+    'DeleteIndex'       => 'DELETE FROM ixlatest',
+    'FindIndex'         => 'SELECT * FROM ixlatest WHERE dist=?',
+    'InsertIndex'       => 'INSERT INTO ixlatest (version,released,dist) VALUES (?,?,?)',
+    'UpdateIndex'       => 'UPDATE ixlatest SET version=?,released=? WHERE dist=?',
+    'BuildIndex'        => 'SELECT x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue',
+
+    # SQLite backup
+    'CreateTable'       => 'CREATE TABLE uploads  (type text, author text, dist text, version text, filename text, released int)',
 );
 
 my $extn = qr/\.(tar\.(gz|bz2)|tgz|zip)$/;
@@ -62,11 +69,12 @@ sub DESTROY {
 
 __PACKAGE__->mk_accessors(
     qw( uploads backpan cpan logfile logclean lastfile
-        mgenerate mupdate mbackup ));
+        mgenerate mupdate mbackup mreindex ));
 
 sub process {
     my $self = shift;
     $self->generate()  if($self->mgenerate);
+    $self->reindex()   if($self->mreindex);
     $self->update()    if($self->mupdate);
     $self->backup()    if($self->mbackup);
 }
@@ -87,6 +95,28 @@ sub generate {
     $self->_parse_archive('cpan',$_)   for(@files);
 }
 
+sub reindex {
+    my $self = shift;
+    my $db = $self->uploads;
+
+    my %index;
+
+    # generate the latest version index lookup
+    $db->do_query($phrasebook{'DeleteIndex'});
+    my @rows = $db->get_query('array',$phrasebook{'BuildIndex'});
+    for my $row (@rows) {
+        if(defined $index{$row->[2]}) {
+            if($index{$row->[2]} < $row->[1]) {
+                $db->do_query($phrasebook{'UpdateIndex'},@$row);
+                $index{$row->[2]} = $row->[1];
+            }
+        } else {
+            $db->do_query($phrasebook{'InsertIndex'},@$row);
+            $index{$row->[2]} = $row->[1];
+        }
+    }
+}
+
 sub update {
     my $self = shift;
     my $db = $self->uploads;
@@ -99,7 +129,7 @@ sub update {
     $self->_log("Updating CPAN entries");
     my @files = File::Find::Rule->file()->name($extn)->in($self->cpan);
     for(@files) {
-        my $file = $self->_parse_archive('cpan',$_);
+        my $file = $self->_parse_archive('cpan',$_,1);
         delete $cpan{$file} if($file);
     }
 
@@ -144,6 +174,7 @@ sub update {
         my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
         next    if(@rows);
         $db->do_query($phrasebook{'InsertDistVersion'},'upload',$cpanid,$name,$version,$filename,$date);
+        $self->_update_index($version,$date,$name);
     }
 
     $self->_lastid($last);
@@ -196,16 +227,20 @@ Usage: $0 \\
 
   --config=<file>   database configuration file
   -g                generate new database
+  -r                reindex database (*)
   -u                update existing database
   -b                backup database to portable files
   -h                this help screen
   -v                program version
 
+Notes:
+  * A generate request automatically includes a reindex.
+
 HERE
 
     }
 
-    print "$0 v$VERSION\n";
+    print "$0 v$VERSION\n\n";
     exit(0);
 }
 
@@ -213,7 +248,7 @@ HERE
 # Private Methods
 
 sub _parse_archive {
-    my ($self,$type,$file) = @_;
+    my ($self,$type,$file,$update) = @_;
     my $db = $self->uploads;
     my $dist = CPAN::DistnameInfo->new($file);
 
@@ -231,9 +266,24 @@ sub _parse_archive {
         $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version);
     } else {
         $db->do_query($phrasebook{'InsertDistVersion'},$type,$cpanid,$name,$version,$filename,$date);
+        $self->_update_index($version,$date,$name)  if($update);
     }
 
     return $filename;
+}
+
+sub _update_index {
+    my ($self,$version,$date,$name) = @_;
+    my $db = $self->uploads;
+
+    my @index = $db->get_query('hash',$phrasebook{'FindIndex'},$name);
+    if(@index) {
+        if($date < $index[0]->{released}) {
+            $db->do_query($phrasebook{'UpdateIndex'},$version,$date,$name);
+        }
+    } else {
+        $db->do_query($phrasebook{'InsertIndex'},$version,$date,$name);
+    }
 }
 
 sub _nntp_connect {
@@ -269,21 +319,22 @@ sub _init_options {
         'config=s',
         'generate|g',
         'update|u',
+        'reindex|r',
         'backup|b',
         'help|h',
         'version|v'
     );
 
     # default to API settings if no command line option
-    for(qw(config generate update backup help version)) {
+    for(qw(config generate update reindex backup help version)) {
         $options{$_} ||= $hash{$_}  if(defined $hash{$_});
     }
 
     $self->help(1)  if($options{help});
     $self->help(0)  if($options{version});
 
-    $self->help(1,"Must specify at least one option from 'generate' (-g), 'update' (-u)  and/or 'backup' (-b)")
-                                                                        unless($options{generate} || $options{update} || $options{backup});
+    $self->help(1,"Must specify at least one option from 'generate' (-g), 'reindex' (-r),\n'update' (-u)  and/or 'backup' (-b)")
+                                                                        unless($options{generate} || $options{update} || $options{backup} || $options{reindex});
     $self->help(1,"Must specific the configuration file")               unless($options{config});
     $self->help(1,"Configuration file [$options{config}] not found")    unless(-f $options{config});
 
@@ -297,12 +348,16 @@ sub _init_options {
         $self->help(1,"Cannot find source location for 'BACKPAN': [$dir]")  if(!-d $dir);
         $self->backpan($dir);
         $self->mgenerate(1);
+        $self->mreindex(1);
     }
     if($options{generate} || $options{update}) {
         my $dir = $cfg->val('MASTER','CPAN');
         $self->help(1,"No source location for 'CPAN' in config file")   if(!   $dir);
         $self->help(1,"Cannot find source location for 'CPAN': [$dir]") if(!-d $dir);
         $self->cpan($dir);
+    }
+    if($options{reindex}) {
+        $self->mreindex(1);
     }
 
     $self->mupdate(1)   if($options{update});
@@ -371,7 +426,7 @@ CPAN::Testers::Data::Uploads - CPAN Testers Uploads Database Generator
 
 =head1 SYNOPSIS
 
-  perl uploads.pl --config=<file> [--generate] [--update] [--backup]
+  perl uploads.pl --config=<file> [--generate] [--reindex] [--update] [--backup]
 
 =head1 DESCRIPTION
 
@@ -435,6 +490,8 @@ Instatiates the object CPAN::Testers::Data::Uploads:
 
 =item * generate
 
+=item * reindex
+
 =item * update
 
 =item * backup
@@ -448,6 +505,8 @@ Instatiates the object CPAN::Testers::Data::Uploads:
 =over
 
 =item * _parse_archive
+
+=item * _update_index
 
 =item * _nntp_connect
 

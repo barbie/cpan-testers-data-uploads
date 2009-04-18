@@ -11,6 +11,14 @@ CREATE TABLE `uploads` (
   PRIMARY KEY  (`author`,`dist`,`version`)
 ) ENGINE=MyISAM;
 
+DROP TABLE IF EXISTS `ixlatest`;
+CREATE TABLE `ixlatest` (
+  `dist`        varchar(100)    NOT NULL,
+  `version`     varchar(100)    NOT NULL,
+  `released`    int(16)		NOT NULL,
+  PRIMARY KEY  (`dist`)
+) ENGINE=MyISAM;
+
 
 ## SQLite
 
