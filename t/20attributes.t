@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 37;
+use Test::More tests => 41;
 use CPAN::Testers::Data::Uploads;
 
 use lib 't';
@@ -15,7 +15,7 @@ ok( my $obj = CTDU_Testing::getObj(), "got object" );
 
 # predefined attributes
 foreach my $k ( qw/
-	uploads
+    uploads
     cpan
     logfile
     logclean
@@ -37,6 +37,7 @@ foreach my $k ( qw/
     backpan
     mgenerate
     mbackup
+    mreindex
 / ){
   my $label = "[$k]";
   SKIP: {

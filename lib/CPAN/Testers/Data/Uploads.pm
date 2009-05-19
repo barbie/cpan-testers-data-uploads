@@ -40,9 +40,11 @@ my %phrasebook = (
 
     'DeleteIndex'       => 'DELETE FROM ixlatest',
     'FindIndex'         => 'SELECT * FROM ixlatest WHERE dist=?',
-    'InsertIndex'       => 'INSERT INTO ixlatest (version,released,dist) VALUES (?,?,?)',
-    'UpdateIndex'       => 'UPDATE ixlatest SET version=?,released=? WHERE dist=?',
-    'BuildIndex'        => 'SELECT x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue',
+    'InsertIndex'       => 'INSERT INTO ixlatest (author,version,released,dist) VALUES (?,?,?,?)',
+    'UpdateIndex'       => 'UPDATE ixlatest SET author=?,version=?,released=? WHERE dist=?',
+    'BuildIndex'        => 'SELECT x.author,x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue',
+
+    'InsertRequest'     => 'INSERT INTO page_requests (type,name,weight) VALUES (?,?,5)',
 
     # SQLite backup
     'CreateTable'       => 'CREATE TABLE uploads  (type text, author text, dist text, version text, filename text, released int)',
@@ -105,14 +107,14 @@ sub reindex {
     $db->do_query($phrasebook{'DeleteIndex'});
     my @rows = $db->get_query('array',$phrasebook{'BuildIndex'});
     for my $row (@rows) {
-        if(defined $index{$row->[2]}) {
-            if($index{$row->[2]} < $row->[1]) {
+        if(defined $index{$row->[3]}) {
+            if($index{$row->[3]} < $row->[2]) {
                 $db->do_query($phrasebook{'UpdateIndex'},@$row);
-                $index{$row->[2]} = $row->[1];
+                $index{$row->[3]} = $row->[2];
             }
         } else {
             $db->do_query($phrasebook{'InsertIndex'},@$row);
-            $index{$row->[2]} = $row->[1];
+            $index{$row->[3]} = $row->[2];
         }
     }
 }
@@ -174,7 +176,7 @@ sub update {
         my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
         next    if(@rows);
         $db->do_query($phrasebook{'InsertDistVersion'},'upload',$cpanid,$name,$version,$filename,$date);
-        $self->_update_index($version,$date,$name);
+        $self->_update_index($cpanid,$version,$date,$name);
     }
 
     $self->_lastid($last);
@@ -266,24 +268,30 @@ sub _parse_archive {
         $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version);
     } else {
         $db->do_query($phrasebook{'InsertDistVersion'},$type,$cpanid,$name,$version,$filename,$date);
-        $self->_update_index($version,$date,$name)  if($update);
+        $self->_update_index($cpanid,$version,$date,$name)  if($update);
     }
 
     return $filename;
 }
 
 sub _update_index {
-    my ($self,$version,$date,$name) = @_;
+    my ($self,$author,$version,$date,$name) = @_;
     my $db = $self->uploads;
 
     my @index = $db->get_query('hash',$phrasebook{'FindIndex'},$name);
     if(@index) {
         if($date < $index[0]->{released}) {
-            $db->do_query($phrasebook{'UpdateIndex'},$version,$date,$name);
+            $db->do_query($phrasebook{'UpdateIndex'},$author,$version,$date,$name);
         }
     } else {
-        $db->do_query($phrasebook{'InsertIndex'},$version,$date,$name);
+        $db->do_query($phrasebook{'InsertIndex'},$author,$version,$date,$name);
     }
+
+    # add to page_requests table to update letter index pages and individual pages
+    $db->do_query($phrasebook{'InsertRequest'},'ixauth',substr($author,0,1));
+    $db->do_query($phrasebook{'InsertRequest'},'ixdist',substr($name,0,1));
+    $db->do_query($phrasebook{'InsertRequest'},'author',$author);
+    $db->do_query($phrasebook{'InsertRequest'},'distro',$name);
 }
 
 sub _nntp_connect {
@@ -367,7 +375,7 @@ sub _init_options {
 
     # configure upload DB
     $self->help(1,"No configuration for UPLOADS database") unless($cfg->SectionExists('UPLOADS'));
-    my %opts = map {$_ => $cfg->val('UPLOADS',$_);} qw(driver database dbfile dbhost dbport dbuser dbpass);
+    my %opts = map {$_ => ($cfg->val('UPLOADS',$_) || undef);} qw(driver database dbfile dbhost dbport dbuser dbpass);
     my $db = CPAN::Testers::Common::DBUtils->new(%opts);
     $self->help(1,"Cannot configure UPLOADS database") unless($db);
     $self->uploads($db);

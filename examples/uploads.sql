@@ -16,9 +16,25 @@ CREATE TABLE `ixlatest` (
   `dist`        varchar(100)    NOT NULL,
   `version`     varchar(100)    NOT NULL,
   `released`    int(16)		NOT NULL,
+  `author`      varchar(32)     NOT NULL,
   PRIMARY KEY  (`dist`)
 ) ENGINE=MyISAM;
 
+DROP TABLE IF EXISTS `summary`;
+CREATE TABLE `summary` (
+  `type`	varchar(8)	 NOT NULL,
+  `name`	varchar(255)     NOT NULL,
+  `lastid`	int(10) unsigned NOT NULL,
+  `dataset`	blob,
+  PRIMARY KEY  (`type`,`name`)
+) ENGINE=MyISAM;
+
+DROP TABLE IF EXISTS `page_requests`;
+CREATE TABLE `page_requests` (
+  `type`	varchar(8)	 NOT NULL,
+  `name`	varchar(255)     NOT NULL,
+  `weight`	int(2) unsigned  NOT NULL
+) ENGINE=MyISAM;
 
 ## SQLite
 
