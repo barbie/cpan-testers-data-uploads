@@ -9,7 +9,7 @@ mkdir -p data
 date_format="%Y/%m/%d %H:%M:%S"
 echo `date +"$date_format"` "START" >>logs/uploads.log
 
-perl uploads.pl --config=uploads.ini -u -b
+perl bin/uploads.pl --config=data/uploads.ini -u -b
 
 echo `date +"$date_format"` "Compressing Uploads data..." >>logs/uploads.log
 
@@ -20,7 +20,7 @@ cp $BASE/uploads/data/uploads.db .  ; bzip2 uploads.db
 cp $BASE/uploads/data/uploads.csv . ; gzip  uploads.csv
 cp $BASE/uploads/data/uploads.csv . ; bzip2 uploads.csv
 
-mkdir -p /var/www/devel/uploads
-mv uploads.* /var/www/devel/uploads
+mkdir -p /var/www/cpandevel/uploads
+mv uploads.* /var/www/cpandevel/uploads
 
 echo `date +"$date_format"` "STOP" >>logs/uploads.log
