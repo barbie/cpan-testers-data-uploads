@@ -9,7 +9,7 @@ mkdir -p data
 date_format="%Y/%m/%d %H:%M:%S"
 echo `date +"$date_format"` "START" >>logs/uploads.log
 
-perl bin/uploads.pl --config=data/uploads.ini -u -b
+perl bin/uploads.pl --config=data/uploads.ini -u -b >>logs/uploads.log 2>&1
 
 echo `date +"$date_format"` "Compressing Uploads data..." >>logs/uploads.log
 

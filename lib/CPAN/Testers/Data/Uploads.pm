@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.07';
+$VERSION = '0.08';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -38,11 +38,14 @@ my %phrasebook = (
     'DeleteAll'         => 'DELETE FROM uploads',
     'SelectAll'         => 'SELECT * FROM uploads',
 
-    'DeleteIndex'       => 'DELETE FROM ixlatest',
+    'DeleteAllIndex'    => 'DELETE FROM ixlatest',
+    'DeleteIndex'       => 'DELETE FROM ixlatest WHERE dist=?',
     'FindIndex'         => 'SELECT * FROM ixlatest WHERE dist=?',
     'InsertIndex'       => 'INSERT INTO ixlatest (author,version,released,dist) VALUES (?,?,?,?)',
     'UpdateIndex'       => 'UPDATE ixlatest SET author=?,version=?,released=? WHERE dist=?',
-    'BuildIndex'        => 'SELECT x.author,x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue',
+    'BuildIndex'        => 'SELECT x.author,x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
+    'BuildAuthorIndex'  => 'SELECT x.author,x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads WHERE author=? GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
+    'GetAllAuthors'     => 'SELECT distinct(author) FROM uploads',
 
     'InsertRequest'     => 'INSERT INTO page_requests (type,name,weight) VALUES (?,?,5)',
 
@@ -101,22 +104,18 @@ sub reindex {
     my $self = shift;
     my $db = $self->uploads;
 
-    my %index;
+    $self->_log("Reindexing distros");
 
-    # generate the latest version index lookup
-    $db->do_query($phrasebook{'DeleteIndex'});
-    my @rows = $db->get_query('array',$phrasebook{'BuildIndex'});
-    for my $row (@rows) {
-        if(defined $index{$row->[3]}) {
-            if($index{$row->[3]} < $row->[2]) {
-                $db->do_query($phrasebook{'UpdateIndex'},@$row);
-                $index{$row->[3]} = $row->[2];
-            }
-        } else {
-            $db->do_query($phrasebook{'InsertIndex'},@$row);
-            $index{$row->[3]} = $row->[2];
+    my @authors = $db->get_query('hash',$phrasebook{'GetAllAuthors'});
+    for my $author (@authors) {
+        my @rows = $db->get_query('hash',$phrasebook{'BuildAuthorIndex'},$author->{author});
+        for my $row (@rows) {
+            $db->do_query($phrasebook{'DeleteIndex'},$row->{dist});
+            $db->do_query($phrasebook{'InsertIndex'},$row->{author},$row->{version},$row->{released},$row->{dist});
         }
     }
+
+    $self->_log("Reindexing distros done");
 }
 
 sub update {

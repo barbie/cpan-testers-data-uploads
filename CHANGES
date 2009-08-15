@@ -1,6 +1,10 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.08	15/08/2009
+	- reworked reindexing to be less dramatic.
+	- added example for reindexing.
+
 0.07	19/05/2009
 	Added an index lookup table, and tables now resides within the
 	cpanstats database for easier cross-table queries.
