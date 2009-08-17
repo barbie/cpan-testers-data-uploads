@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.08';
+$VERSION = '0.09';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -279,7 +279,7 @@ sub _update_index {
 
     my @index = $db->get_query('hash',$phrasebook{'FindIndex'},$name);
     if(@index) {
-        if($date < $index[0]->{released}) {
+        if($date > $index[0]->{released}) {
             $db->do_query($phrasebook{'UpdateIndex'},$author,$version,$date,$name);
         }
     } else {

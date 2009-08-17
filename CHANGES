@@ -1,6 +1,9 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.09	17/08/2009
+	- fixed indexing bug.
+
 0.08	15/08/2009
 	- reworked reindexing to be less dramatic.
 	- added example for reindexing.
