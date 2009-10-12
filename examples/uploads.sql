@@ -4,8 +4,8 @@ DROP TABLE IF EXISTS `uploads`;
 CREATE TABLE `uploads` (
   `type`        varchar(10)     NOT NULL,
   `author`      varchar(32)     NOT NULL,
-  `dist`        varchar(100)    NOT NULL,
-  `version`     varchar(100)    NOT NULL,
+  `dist`        varchar(255)    NOT NULL,
+  `version`     varchar(255)    NOT NULL,
   `filename`    varchar(255)    NOT NULL,
   `released`    int(16)		NOT NULL,
   PRIMARY KEY  (`author`,`dist`,`version`)
@@ -13,10 +13,11 @@ CREATE TABLE `uploads` (
 
 DROP TABLE IF EXISTS `ixlatest`;
 CREATE TABLE `ixlatest` (
-  `dist`        varchar(100)    NOT NULL,
-  `version`     varchar(100)    NOT NULL,
+  `dist`        varchar(255)    NOT NULL,
+  `version`     varchar(255)    NOT NULL,
   `released`    int(16)		NOT NULL,
   `author`      varchar(32)     NOT NULL,
+  `oncpan`      tinyint(4)      DEFAULT 0,
   PRIMARY KEY  (`dist`)
 ) ENGINE=MyISAM;
 

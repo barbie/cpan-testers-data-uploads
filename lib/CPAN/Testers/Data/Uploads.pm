@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.09';
+$VERSION = '0.10';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -41,10 +41,10 @@ my %phrasebook = (
     'DeleteAllIndex'    => 'DELETE FROM ixlatest',
     'DeleteIndex'       => 'DELETE FROM ixlatest WHERE dist=?',
     'FindIndex'         => 'SELECT * FROM ixlatest WHERE dist=?',
-    'InsertIndex'       => 'INSERT INTO ixlatest (author,version,released,dist) VALUES (?,?,?,?)',
-    'UpdateIndex'       => 'UPDATE ixlatest SET author=?,version=?,released=? WHERE dist=?',
-    'BuildIndex'        => 'SELECT x.author,x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
-    'BuildAuthorIndex'  => 'SELECT x.author,x.version,x.released,x.dist FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads WHERE author=? GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
+    'InsertIndex'       => 'INSERT INTO ixlatest (author,version,released,dist,oncpan) VALUES (?,?,?,?,?)',
+    'AmendIndex'        => 'UPDATE ixlatest SET oncpan=? WHERE author=? AND version=? AND dist=?',
+    'UpdateIndex'       => 'UPDATE ixlatest SET author=?,version=?,released=?,oncpan=? WHERE dist=?',
+    'BuildAuthorIndex'  => 'SELECT x.author,x.version,x.released,x.dist,x.type FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads WHERE author=? GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
     'GetAllAuthors'     => 'SELECT distinct(author) FROM uploads',
 
     'InsertRequest'     => 'INSERT INTO page_requests (type,name,weight) VALUES (?,?,5)',
@@ -54,6 +54,12 @@ my %phrasebook = (
 );
 
 my $extn = qr/\.(tar\.(gz|bz2)|tgz|zip)$/;
+
+my %oncpan = (
+    'backpan'   => 2,
+    'cpan'      => 1,
+    'upload'    => 1
+);
 
 #----------------------------------------------------------------------------
 # The Application Programming Interface
@@ -111,7 +117,7 @@ sub reindex {
         my @rows = $db->get_query('hash',$phrasebook{'BuildAuthorIndex'},$author->{author});
         for my $row (@rows) {
             $db->do_query($phrasebook{'DeleteIndex'},$row->{dist});
-            $db->do_query($phrasebook{'InsertIndex'},$row->{author},$row->{version},$row->{released},$row->{dist});
+            $db->do_query($phrasebook{'InsertIndex'},$row->{author},$row->{version},$row->{released},$row->{dist},$oncpan{$row->{type}});
         }
     }
 
@@ -131,7 +137,11 @@ sub update {
     my @files = File::Find::Rule->file()->name($extn)->in($self->cpan);
     for(@files) {
         my $file = $self->_parse_archive('cpan',$_,1);
-        delete $cpan{$file} if($file);
+        if($file) {
+            delete $cpan{$file} if($file);
+        } else {
+            $self->_log(".. cannot parse: $_");
+        }
     }
 
     # demote any distributions no longer on CPAN
@@ -139,6 +149,7 @@ sub update {
     for my $file (keys %cpan) {
         #$self->_log("backpan => $cpan{$file}->{dist} => $cpan{$file}->{version} => $cpan{$file}->{author} => $cpan{$file}->{released}");
         $db->do_query($phrasebook{'UpdateDistVersion'},'backpan',$cpan{$file}->{author},$cpan{$file}->{dist},$cpan{$file}->{version});
+        $db->do_query($phrasebook{'AmendIndex'},2,$cpan{$file}->{author},$cpan{$file}->{version},$cpan{$file}->{dist});
     }
 
     # read NNTP
@@ -175,7 +186,7 @@ sub update {
         my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
         next    if(@rows);
         $db->do_query($phrasebook{'InsertDistVersion'},'upload',$cpanid,$name,$version,$filename,$date);
-        $self->_update_index($cpanid,$version,$date,$name);
+        $self->_update_index($cpanid,$version,$date,$name,1);
     }
 
     $self->_lastid($last);
@@ -267,23 +278,23 @@ sub _parse_archive {
         $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version);
     } else {
         $db->do_query($phrasebook{'InsertDistVersion'},$type,$cpanid,$name,$version,$filename,$date);
-        $self->_update_index($cpanid,$version,$date,$name)  if($update);
+        $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})   if($update);
     }
 
     return $filename;
 }
 
 sub _update_index {
-    my ($self,$author,$version,$date,$name) = @_;
+    my ($self,$author,$version,$date,$name,$oncpan) = @_;
     my $db = $self->uploads;
 
     my @index = $db->get_query('hash',$phrasebook{'FindIndex'},$name);
     if(@index) {
         if($date > $index[0]->{released}) {
-            $db->do_query($phrasebook{'UpdateIndex'},$author,$version,$date,$name);
+            $db->do_query($phrasebook{'UpdateIndex'},$author,$version,$date,$name,$oncpan);
         }
     } else {
-        $db->do_query($phrasebook{'InsertIndex'},$author,$version,$date,$name);
+        $db->do_query($phrasebook{'InsertIndex'},$author,$version,$date,$name,$oncpan);
     }
 
     # add to page_requests table to update letter index pages and individual pages
