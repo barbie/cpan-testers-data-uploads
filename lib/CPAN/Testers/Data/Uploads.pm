@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.10';
+$VERSION = '0.11';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -114,6 +114,7 @@ sub reindex {
 
     my @authors = $db->get_query('hash',$phrasebook{'GetAllAuthors'});
     for my $author (@authors) {
+        $self->_log(".. author = $author");
         my @rows = $db->get_query('hash',$phrasebook{'BuildAuthorIndex'},$author->{author});
         for my $row (@rows) {
             $db->do_query($phrasebook{'DeleteIndex'},$row->{dist});
@@ -140,7 +141,7 @@ sub update {
         if($file) {
             delete $cpan{$file} if($file);
         } else {
-            $self->_log(".. cannot parse: $_");
+            #$self->_log(".. cannot parse: $_");
         }
     }
 
@@ -183,10 +184,10 @@ sub update {
         next  unless($name && $version && $cpanid && $date);
         #$self->_log("upload => $name => $version => $cpanid => $date");
 
+        $self->_update_index($cpanid,$version,$date,$name,1);
         my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
         next    if(@rows);
         $db->do_query($phrasebook{'InsertDistVersion'},'upload',$cpanid,$name,$version,$filename,$date);
-        $self->_update_index($cpanid,$version,$date,$name,1);
     }
 
     $self->_lastid($last);
@@ -275,7 +276,8 @@ sub _parse_archive {
 
     my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
     if(@rows) {
-        $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version);
+        $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version)
+            unless($type eq $rows[0]->{type});
     } else {
         $db->do_query($phrasebook{'InsertDistVersion'},$type,$cpanid,$name,$version,$filename,$date);
         $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})   if($update);
@@ -292,9 +294,11 @@ sub _update_index {
     if(@index) {
         if($date > $index[0]->{released}) {
             $db->do_query($phrasebook{'UpdateIndex'},$author,$version,$date,$name,$oncpan);
+            $self->_log("... index update [$author,$version,$date,$name,$oncpan]");
         }
     } else {
         $db->do_query($phrasebook{'InsertIndex'},$author,$version,$date,$name,$oncpan);
+        $self->_log("... index insert [$author,$version,$date,$name,$oncpan]");
     }
 
     # add to page_requests table to update letter index pages and individual pages

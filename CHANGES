@@ -1,6 +1,10 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.11	current
+	- update to logging messages
+	- slight change to update to avoid unnecessary SQL updates.
+
 0.10	12/10/2009
 	- added oncpan field to ixlatest to further improve table lookups.
 
