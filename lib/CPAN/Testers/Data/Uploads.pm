@@ -278,6 +278,7 @@ sub _parse_archive {
     if(@rows) {
         $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version)
             unless($type eq $rows[0]->{type});
+        $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})   if($update && $type ne 'backpan');
     } else {
         $db->do_query($phrasebook{'InsertDistVersion'},$type,$cpanid,$name,$version,$filename,$date);
         $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})   if($update);
