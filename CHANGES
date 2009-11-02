@@ -1,7 +1,7 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
-0.11	current
+0.11	02/11/2009
 	- update to logging messages
 	- slight change to update to avoid unnecessary SQL updates.
 	- attempt to catch missing index updates when updating CPAN entries.
