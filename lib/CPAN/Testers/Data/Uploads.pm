@@ -535,17 +535,83 @@ Instatiates the object CPAN::Testers::Data::Uploads:
 
 =item * process
 
+Based on accessor settings will run the appropriate methods for the current
+execution.
+
 =item * generate
+
+Generates a new uploads and ixlatest database.
 
 =item * reindex
 
+Rebuilds the ixlatest table for all entries.
+
 =item * reindex_fast
+
+Updates the ixlatest tables for any entries that have had a more recent upload.
 
 =item * update
 
+Updates the uploads and ixlatest databases.
+
 =item * backup
 
+Provides backup files of the uploads database.
+
 =item * help
+
+Provides a help screen.
+
+=back
+
+=head2 Accessor Methods
+
+=over
+
+=item * uploads
+
+Database handle to the uploads database.
+
+=item * backpan
+
+Path to the BACKPAN archive directory.
+
+=item * cpan
+
+Path to the CPAN archive directory.
+
+=item * logfile
+
+Path to output log file for progress and debugging messages.
+
+=item * logclean
+
+If set to a true value will create/overwrite the logfile, otherwise will
+append any messages.
+
+=item * lastfile
+
+Path to the file containing the last NNTPID processed.
+
+=item * mgenerate
+
+If set to a true value runs in generate mode for the process method().
+
+=item * mupdate
+
+If set to a true value runs in update mode for the process method().
+
+=item * mbackup
+
+If set to a true value runs in backup mode for the process method().
+
+=item * mreindex
+
+If set to a true value runs in reindex mode for the process method().
+
+=item * mfast
+
+If set to a true value runs in fast reindex mode for the process method().
 
 =back
 
@@ -555,7 +621,11 @@ Instatiates the object CPAN::Testers::Data::Uploads:
 
 =item * _parse_archive
 
+Parses the given article from the NNTP feed.
+
 =item * _update_index
+
+Updates the ixlatest table and pushes requests to the page_request table.
 
 =item * _nntp_connect
 
@@ -563,7 +633,12 @@ Sets up the connection to the NNTP server.
 
 =item * _lastid
 
+Sets or returns the last NNTPID processed.
+
 =item * _init_options
+
+Initialises internal configuration settings based on command line options, API
+options and configuration file settings.
 
 =back
 
