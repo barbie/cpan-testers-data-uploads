@@ -19,6 +19,7 @@ WriteMakefile(
 
         'Test::More'                        => 0,       # only for testing
         'Archive::Extract'                  => 0,       # only for testing
+        'Archive::Zip'                      => 0,       # only for testing
 
         'DBD::mysql'                        => 0,
         'DBD::SQLite'                       => 0,

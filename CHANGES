@@ -1,6 +1,9 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.13	09/12/2009
+	- added Archive::Zip as a dependency for testing.
+
 0.12	05/11/2009
 	- added fast reindex functionality
 	- improved speed of index lookup
