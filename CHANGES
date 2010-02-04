@@ -1,6 +1,9 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.14	current
+	- fixed repository and bugtracker links in META.yml.
+
 0.13	09/12/2009
 	- added Archive::Zip as a dependency for testing.
 
