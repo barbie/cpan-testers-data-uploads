@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.14';
+$VERSION = '0.15';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -40,20 +40,18 @@ my %phrasebook = (
     'SelectAll'         => 'SELECT * FROM uploads',
 
     'DeleteAllIndex'    => 'DELETE FROM ixlatest',
-    'DeleteIndex'       => 'DELETE FROM ixlatest WHERE dist=?',
-    'FindIndex'         => 'SELECT * FROM ixlatest WHERE dist=?',
-    'InsertIndex'       => 'INSERT INTO ixlatest (author,version,released,dist,oncpan) VALUES (?,?,?,?,?)',
+    'DeleteIndex'       => 'DELETE FROM ixlatest WHERE dist=? AND author=?',
+    'FindIndex'         => 'SELECT * FROM ixlatest WHERE dist=? AND author=?',
+    'InsertIndex'       => 'INSERT INTO ixlatest (oncpan,author,version,released,dist) VALUES (?,?,?,?,?)',
     'AmendIndex'        => 'UPDATE ixlatest SET oncpan=? WHERE author=? AND version=? AND dist=?',
-    'UpdateIndex'       => 'UPDATE ixlatest SET author=?,version=?,released=?,oncpan=? WHERE dist=?',
+    'UpdateIndex'       => 'UPDATE ixlatest SET oncpan=?,version=?,released=? WHERE dist=? AND author=?',
     'BuildAuthorIndex'  => 'SELECT x.author,x.version,x.released,x.dist,x.type FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads WHERE author=? GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
     'GetAllAuthors'     => 'SELECT distinct(author) FROM uploads',
 
     'InsertRequest'     => 'INSERT INTO page_requests (type,name,weight) VALUES (?,?,5)',
 
-    'FastReIndex'       => 'SELECT u.* FROM ixlatest AS x INNER JOIN uploads AS u ON u.dist=x.dist WHERE x.released < u.released ORDER BY u.released',
-
     # SQLite backup
-    'CreateTable'       => 'CREATE TABLE uploads  (type text, author text, dist text, version text, filename text, released int)',
+    'CreateTable'       => 'CREATE TABLE uploads (type text, author text, dist text, version text, filename text, released int)',
 );
 
 my $extn = qr/\.(tar\.(gz|bz2)|tgz|zip)$/;
@@ -83,13 +81,12 @@ sub DESTROY {
 
 __PACKAGE__->mk_accessors(
     qw( uploads backpan cpan logfile logclean lastfile
-        mgenerate mupdate mbackup mreindex mfast ));
+        mgenerate mupdate mbackup mreindex ));
 
 sub process {
     my $self = shift;
     $self->generate()       if($self->mgenerate);
     $self->reindex()        if($self->mreindex);
-    $self->reindex_fast()   if($self->mfast);
     $self->update()         if($self->mupdate);
     $self->backup()         if($self->mbackup);
 }
@@ -114,35 +111,20 @@ sub reindex {
     my $self = shift;
     my $db = $self->uploads;
 
-    $self->_log("Reindexing distros");
+    $self->_log("Reindexing by author");
 
-    my @authors = $db->get_query('hash',$phrasebook{'GetAllAuthors'});
-    for my $author (@authors) {
-        $self->_log(".. author = $author");
+    my $next = $db->iterator('hash',$phrasebook{'GetAllAuthors'});
+    while(my $author = $next->()) {
+        $self->_log(".. author = $author->{author}");
         my @rows = $db->get_query('hash',$phrasebook{'BuildAuthorIndex'},$author->{author});
         for my $row (@rows) {
-            $db->do_query($phrasebook{'DeleteIndex'},$row->{dist});
-            $db->do_query($phrasebook{'InsertIndex'},$row->{author},$row->{version},$row->{released},$row->{dist},$oncpan{$row->{type}});
+        $self->_log(".... dist = $row->{dist}");
+            $db->do_query($phrasebook{'DeleteIndex'},$row->{dist},$row->{author});
+            $db->do_query($phrasebook{'InsertIndex'},$oncpan{$row->{type}},$row->{author},$row->{version},$row->{released},$row->{dist});
         }
     }
 
-    $self->_log("Reindexing distros done");
-}
-
-sub reindex_fast {
-    my $self = shift;
-    my $db = $self->uploads;
-
-    $self->_log("Reindexing distros FAST");
-
-    my @rows = $db->get_query('hash',$phrasebook{'FastReIndex'});
-    for my $row (@rows) {
-        $self->_log(".. dist = $row->{dist}");
-        $db->do_query($phrasebook{'DeleteIndex'},$row->{dist});
-        $db->do_query($phrasebook{'InsertIndex'},$row->{author},$row->{version},$row->{released},$row->{dist},$oncpan{$row->{type}});
-    }
-
-    $self->_log("Reindexing distros FAST done");
+    $self->_log("Reindexing authors done");
 }
 
 sub update {
@@ -256,12 +238,11 @@ sub help {
         print <<HERE;
 
 Usage: $0 \\
-         -config=<file> [-g] [-u] [-f] [-b] [-h] [-v]
+         -config=<file> [-g] [-r] [-u] [-b] [-h] [-v]
 
   --config=<file>   database configuration file
   -g                generate new database
   -r                reindex database (*)
-  -f                fast reindex database
   -u                update existing database
   -b                backup database to portable files
   -h                this help screen
@@ -299,9 +280,9 @@ sub _parse_archive {
     if(@rows) {
         if($type ne $rows[0]->[0]) {
             $db->do_query($phrasebook{'UpdateDistVersion'},$type,$cpanid,$name,$version);
-            $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})   
-            if($update && $type ne 'backpan');
-    }
+            $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})
+                if($update && $type ne 'backpan');
+        }
     } else {
         $db->do_query($phrasebook{'InsertDistVersion'},$type,$cpanid,$name,$version,$filename,$date);
         $self->_update_index($cpanid,$version,$date,$name,$oncpan{$type})   if($update);
@@ -314,14 +295,14 @@ sub _update_index {
     my ($self,$author,$version,$date,$name,$oncpan) = @_;
     my $db = $self->uploads;
 
-    my @index = $db->get_query('hash',$phrasebook{'FindIndex'},$name);
+    my @index = $db->get_query('hash',$phrasebook{'FindIndex'},$name,$author);
     if(@index) {
         if($date > $index[0]->{released}) {
-            $db->do_query($phrasebook{'UpdateIndex'},$author,$version,$date,$name,$oncpan);
+            $db->do_query($phrasebook{'UpdateIndex'},$oncpan,$version,$date,$name,$author);
             $self->_log("... index update [$author,$version,$date,$name,$oncpan]");
         }
     } else {
-        $db->do_query($phrasebook{'InsertIndex'},$author,$version,$date,$name,$oncpan);
+        $db->do_query($phrasebook{'InsertIndex'},$oncpan,$author,$version,$date,$name);
         $self->_log("... index insert [$author,$version,$date,$name,$oncpan]");
     }
 
@@ -366,8 +347,10 @@ sub _init_options {
         'generate|g',
         'update|u',
         'reindex|r',
-        'fast|f',
         'backup|b',
+        'logfile|l=s',
+        'logclean=s',
+        'lastfile=s',
         'help|h',
         'version|v'
     );
@@ -380,8 +363,8 @@ sub _init_options {
     $self->help(1)  if($options{help});
     $self->help(0)  if($options{version});
 
-    $self->help(1,"Must specify at least one option from 'generate' (-g), 'reindex' (-r),\n'fast' (-f), 'update' (-u)  and/or 'backup' (-b)")
-                                                                        unless($options{generate} || $options{update} || $options{backup} || $options{reindex} || $options{fast});
+    $self->help(1,"Must specify at least one option from 'generate' (-g), 'reindex' (-r),\n'update' (-u)  and/or 'backup' (-b)")
+                                                                        unless($options{generate} || $options{update} || $options{backup} || $options{reindex});
     $self->help(1,"Must specific the configuration file")               unless(   $options{config});
     $self->help(1,"Configuration file [$options{config}] not found")    unless(-f $options{config});
 
@@ -407,11 +390,10 @@ sub _init_options {
         $self->mreindex(1);
     }
 
-    $self->mfast(1)     if($options{fast});
     $self->mupdate(1)   if($options{update});
-    $self->logfile(  $cfg->val('MASTER','logfile'  ) || LOGFILE  );
-    $self->logclean( $cfg->val('MASTER','logclean' ) || 0        );
-    $self->lastfile( $cfg->val('MASTER','lastfile' ) || LASTMAIL );
+    $self->logfile(  $hash{logfile}  || $options{logfile}  || $cfg->val('MASTER','logfile'  ) || LOGFILE  );
+    $self->logclean( $hash{logclean} || $options{logclean} || $cfg->val('MASTER','logclean' ) || 0        );
+    $self->lastfile( $hash{lastfile} || $options{lastfile} || $cfg->val('MASTER','lastfile' ) || LASTMAIL );
 
     # configure upload DB
     $self->help(1,"No configuration for UPLOADS database") unless($cfg->SectionExists('UPLOADS'));
@@ -547,10 +529,6 @@ Generates a new uploads and ixlatest database.
 
 Rebuilds the ixlatest table for all entries.
 
-=item * reindex_fast
-
-Updates the ixlatest tables for any entries that have had a more recent upload.
-
 =item * update
 
 Updates the uploads and ixlatest databases.
@@ -609,10 +587,6 @@ If set to a true value runs in backup mode for the process method().
 =item * mreindex
 
 If set to a true value runs in reindex mode for the process method().
-
-=item * mfast
-
-If set to a true value runs in fast reindex mode for the process method().
 
 =back
 
@@ -677,11 +651,8 @@ http://rt.cpan.org/Public/Dist/Display.html?Name=CPAN-Testers-Data-Uploads
 
 =head1 SEE ALSO
 
-L<CPAN::Testers::Common::Article>,
-L<CPAN::Testers::Common::DBUtils>
 L<CPAN::Testers::Data::Generate>
 L<CPAN::Testers::WWW::Statistics>
-L<CPAN::WWW::Testers>,
 
 F<http://www.cpantesters.org/>,
 F<http://stats.cpantesters.org/>,

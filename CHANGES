@@ -1,6 +1,12 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.15	29/11/2010
+	- fixed UpdateIndex SQL query.
+	- dropped fast reindex, due to flaw in design.
+	- reworked reindex to better manage reindexing by author.
+	- added more command line and API options.
+
 0.14	04/02/2010
 	- fixed repository and bugtracker links in META.yml.
 

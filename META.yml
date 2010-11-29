@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                     CPAN-Testers-Data-Uploads
-version:                  0.14
+version:                  0.15
 abstract:                 CPAN Testers Uploads Database Generator
 author:
   - Barbie <barbie@cpan.org>
@@ -37,7 +37,7 @@ build_requires:
 provides:
   CPAN::Testers::Data::Uploads:
     file:     lib/CPAN/Testers/Data/Uploads.pm
-    version:  0.14
+    version:  0.15
 
 no_index:
   directory:
