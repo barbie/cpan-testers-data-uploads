@@ -5,7 +5,7 @@ WriteMakefile(
     'PREREQ_PM'     => {
 
         'Class::Accessor::Fast'             => 0,
-        'CPAN::DistnameInfo'                => 0,
+        'CPAN::DistnameInfo'                => '0.10',
         'CPAN::Testers::Common::Article'    => 0,
         'CPAN::Testers::Common::DBUtils'    => 0,
         'Config::IniFiles'                  => 0,

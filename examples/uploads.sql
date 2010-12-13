@@ -37,6 +37,18 @@ CREATE TABLE `page_requests` (
   `weight`	int(2) unsigned  NOT NULL
 ) ENGINE=MyISAM;
 
+DROP TABLE IF EXISTS uploads_failed;
+CREATE TABLE uploads_failed (
+    source      varchar(255) NOT NULL,
+    type        varchar(255),
+    dist        varchar(255),
+    version     varchar(255),
+    file        varchar(255),
+    pause       varchar(255),
+    created     int(11) unsigned,
+  PRIMARY KEY  (source)
+) ENGINE=MyISAM;
+
 ## SQLite
 
 CREATE TABLE `uploads` (

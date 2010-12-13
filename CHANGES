@@ -1,6 +1,11 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.16	13/12/2010
+	- new table 'uploads_failed' to record those distribution uploads that 
+	  do not parse using CPAN::DistnameInfo.
+	- now require CPAN::DistnameInfo-0.10 or above.
+
 0.15	29/11/2010
 	- fixed UpdateIndex SQL query.
 	- dropped fast reindex, due to flaw in design.

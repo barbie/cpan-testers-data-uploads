@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.15';
+$VERSION = '0.16';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -49,6 +49,8 @@ my %phrasebook = (
     'GetAllAuthors'     => 'SELECT distinct(author) FROM uploads',
 
     'InsertRequest'     => 'INSERT INTO page_requests (type,name,weight) VALUES (?,?,5)',
+
+    'ParseFailed'       => 'REPLACE INTO uploads_failed (source,type,dist,version,file,pause,created) VALUES (?,?,?,?,?,?,?)',
 
     # SQLite backup
     'CreateTable'       => 'CREATE TABLE uploads (type text, author text, dist text, version text, filename text, released int)',
@@ -273,7 +275,13 @@ sub _parse_archive {
     my $filename  = $dist->filename;  # "CPAN-DistnameInfo-0.02.tar.gz"
     my $date      = (stat($file))[9];
 
-    return  unless($name && $version && $cpanid && $date);
+    unless($name && $version && $cpanid && $date) {
+       $self->_log("PARSE: FAIL file=$file, $type => $name => $version => $cpanid => $date => $filename");
+        $file =~ s!/opt/projects/CPAN/!!;
+        $db->do_query($phrasebook{'ParseFailed'},$file,$type,$name,$version,$filename,$cpanid,$date);
+       return;
+    }
+
     #$self->_log("$type => $name => $version => $cpanid => $date");
 
     my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);

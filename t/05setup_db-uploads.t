@@ -14,13 +14,26 @@ mkpath( dirname($f) );
 my $dbh = CPAN::Testers::Common::DBUtils->new(driver => 'SQLite', database => $f);
 $dbh->do_query(q{
     CREATE TABLE `uploads` (
-     `type`        text    NOT NULL,
-     `author`      text    NOT NULL,
-     `dist`        text    NOT NULL,
-     `version`     text    NOT NULL,
-     `filename`    text    NOT NULL,
-     `released`    int     NOT NULL,
-     PRIMARY KEY  (`author`,`dist`,`version`)
+        `type`        text    NOT NULL,
+        `author`      text    NOT NULL,
+        `dist`        text    NOT NULL,
+        `version`     text    NOT NULL,
+        `filename`    text    NOT NULL,
+        `released`    int     NOT NULL,
+        PRIMARY KEY  (`author`,`dist`,`version`)
+    );
+});
+
+$dbh->do_query(q{
+    CREATE TABLE `uploads_failed` (
+        source      text NOT NULL,
+        type        text,
+        dist        text,
+        version     text,
+        file        text,
+        pause       text,
+        created     int,
+        PRIMARY KEY  (source)
     );
 });
 
