@@ -1,6 +1,9 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.17	current
+	- removed delete file test, as Win32 can't cope.
+
 0.16	13/12/2010
 	- new table 'uploads_failed' to record those distribution uploads that 
 	  do not parse using CPAN::DistnameInfo.

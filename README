@@ -51,11 +51,14 @@ to barbie@cpan.org .
 
 RT: http://rt.cpan.org/Public/Dist/Display.html?Name=CPAN-Testers-Data-Uploads
 
-AUTHOR & COPYRIGHT
+AUTHOR
 
-  Barbie <barbie@cpan.org> (C) 2008-2010
+Barbie <barbie@cpan.org>
+for Miss Barbell Productions http://www.missbarbell.co.uk.
 
-LICENCE
+COPYRIGHT AND LICENSE
 
-  This package is free software; you can redistribute it and/or 
-  modify it under the same terms as Perl itself.
+  Copyright (C) 2008-2011 Barbie for Miss Barbell Productions
+
+  This module is free software; you can redistribute it and/or
+  modify it under the Artistic Licence v2.

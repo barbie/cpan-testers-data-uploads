@@ -5,6 +5,7 @@ examples/uploads.pl
 examples/uploads.sh
 examples/uploads.sql
 lib/CPAN/Testers/Data/Uploads.pm
+LICENSE
 Makefile.PL
 MANIFEST
 META.yml
