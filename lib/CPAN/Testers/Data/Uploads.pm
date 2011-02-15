@@ -21,6 +21,7 @@ use File::Find::Rule;
 use File::Path;
 use File::Slurp;
 use Getopt::Long;
+use IO::AtomicFile;
 use IO::File;
 use Net::NNTP;
 
@@ -30,8 +31,11 @@ use Net::NNTP;
 my (%backups);
 use constant    LASTMAIL    => '_lastmail';
 use constant    LOGFILE     => '_uploads.log';
+use constant    JOURNAL     => '_journal.sql';
 
 my %phrasebook = (
+    'FindAuthor'        => 'SELECT * FROM ixlatest WHERE author=?',
+
     'FindDistVersion'   => 'SELECT type FROM uploads WHERE author=? AND dist=? AND version=?',
     'InsertDistVersion' => 'INSERT INTO uploads (type,author,dist,version,filename,released) VALUES (?,?,?,?,?,?)',
     'UpdateDistVersion' => 'UPDATE uploads SET type=? WHERE author=? AND dist=? AND version=?',
@@ -133,6 +137,8 @@ sub update {
     my $self = shift;
     my $db = $self->uploads;
 
+    $self->_open_journal();
+
     # get list of db known CPAN distributions
     my @rows = $db->get_query('hash',$phrasebook{'FindDistTypes'},'cpan');
     my %cpan = map {$_->{filename} => $_} @rows;
@@ -141,9 +147,8 @@ sub update {
     $self->_log("Updating CPAN entries");
     my @files = File::Find::Rule->file()->name($extn)->in($self->cpan);
     for(@files) {
-        my $file = $self->_parse_archive('cpan',$_,1);
-        if($file) {
-            delete $cpan{$file} if($file);
+        if(my $file = $self->_parse_archive('cpan',$_,1)) {
+            delete $cpan{$file};
         } else {
             #$self->_log(".. cannot parse: $_");
         }
@@ -153,7 +158,7 @@ sub update {
     $self->_log("Updating BACKPAN entries");
     for my $file (keys %cpan) {
         #$self->_log("backpan => $cpan{$file}->{dist} => $cpan{$file}->{version} => $cpan{$file}->{author} => $cpan{$file}->{released}");
-        $db->do_query($phrasebook{'UpdateDistVersion'},'backpan',$cpan{$file}->{author},$cpan{$file}->{dist},$cpan{$file}->{version});
+        $self->_write_journal('UpdateDistVersion','backpan',$cpan{$file}->{author},$cpan{$file}->{dist},$cpan{$file}->{version});
         $db->do_query($phrasebook{'AmendIndex'},2,$cpan{$file}->{author},$cpan{$file}->{version},$cpan{$file}->{dist});
     }
 
@@ -191,30 +196,48 @@ sub update {
         $self->_update_index($cpanid,$version,$date,$name,1);
         my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
         next    if(@rows);
-        $db->do_query($phrasebook{'InsertDistVersion'},'upload',$cpanid,$name,$version,$filename,$date);
+        $self->_write_journal('InsertDistVersion','upload',$cpanid,$name,$version,$filename,$date);
     }
 
     $self->_lastid($last);
+    $self->_close_journal();
 }
 
 sub backup {
     my $self = shift;
     my $db = $self->uploads;
 
-    for my $driver (keys %backups) {
-        if($backups{$driver}{'exists'}) {
-            $backups{$driver}{db}->do_query($phrasebook{'DeleteAll'});
-        } elsif($driver =~ /(CSV|SQLite)/i) {
-            $backups{$driver}{db}->do_query($phrasebook{'CreateTable'});
+    if(my @journals = $self->_find_journals()) {
+        for my $journal (@journals) {
+            next    if($journal =~ /TMP$/); # don't process active journals
+            $self->_log("Processing journal $journal");
+            my $lines = $self->_read_journal($journal);
+            for my $line (@$lines) {
+                my ($phrase,@args) = @$line;
+                for my $driver (keys %backups) {
+                    $backups{$driver}{db}->do_query($phrasebook{$phrase},@args);
+                }
+            }
+
+           $self->_done_journal($journal);
         }
-    }
-
-    $self->_log("Backup via DBD drivers");
-
-    my $rows = $db->iterator('array',$phrasebook{'SelectAll'});
-    while(my $row = $rows->()) {
+        $self->_log("Processed journals");
+    } else {
         for my $driver (keys %backups) {
-            $backups{$driver}{db}->do_query($phrasebook{'InsertDistVersion'},@$row);
+            if($backups{$driver}{'exists'}) {
+                $backups{$driver}{db}->do_query($phrasebook{'DeleteAll'});
+            } elsif($driver =~ /(CSV|SQLite)/i) {
+                $backups{$driver}{db}->do_query($phrasebook{'CreateTable'});
+            }
+        }
+
+        $self->_log("Backup via DBD drivers");
+
+        my $rows = $db->iterator('array',$phrasebook{'SelectAll'});
+        while(my $row = $rows->()) {
+            for my $driver (keys %backups) {
+                $backups{$driver}{db}->do_query($phrasebook{'InsertDistVersion'},@$row);
+            }
         }
     }
 
@@ -276,12 +299,11 @@ sub _parse_archive {
     my $date      = (stat($file))[9];
 
     unless($name && $version && $cpanid && $date) {
-       $self->_log("PARSE: FAIL file=$file, $type => $name => $version => $cpanid => $date => $filename");
+    	#$self->_log("PARSE: FAIL file=$file, $type => $name => $version => $cpanid => $date => $filename");
         $file =~ s!/opt/projects/CPAN/!!;
         $db->do_query($phrasebook{'ParseFailed'},$file,$type,$name,$version,$filename,$cpanid,$date);
-       return;
+    	return;
     }
-
     #$self->_log("$type => $name => $version => $cpanid => $date");
 
     my @rows = $db->get_query('array',$phrasebook{'FindDistVersion'},$cpanid,$name,$version);
@@ -343,6 +365,53 @@ sub _lastid {
     else    { $id = read_file($f); }
 
     return $id;
+}
+
+# generate atomic journal file name
+sub _open_journal {
+    my $self = shift;
+    my @now  = localtime(time);
+    my $file = sprintf "%s.%04d%02d%02d%02d%02d%02d", JOURNAL, $now[5]+1900,$now[4]+1,$now[3],$now[2],$now[1],$now[0];
+    $self->{journal} = IO::AtomicFile->new($file,'w+') or die "Cannot write to journal file [$file]: $!\n";
+}
+
+sub _write_journal {
+    my ($self,$phrase,@args) = @_;
+    my $fh = $self->{journal};
+
+    print $fh "$phrase," . join(',',@args) . "\n";
+
+    my $db = $self->uploads;
+    $db->do_query($phrasebook{$phrase},@args);
+}
+
+sub _close_journal {
+    my $self = shift;
+    $self->{journal}->close;
+}
+
+sub _find_journals {
+    my @files = glob(JOURNAL . '.*');
+    return @files;
+}
+
+sub _read_journal {
+    my ($self,$journal) = @_;
+    my @lines;
+
+    my $fh = IO::File->new($journal,'r') or die "Cannot read journal file [$journal]: $!\n";
+    while(<$fh>) {
+        my @fields = split(/,/);
+        push @lines, \@fields;
+    }
+    $fh->close;
+    return \@lines;
+}
+
+sub _done_journal {
+    my ($self,$journal) = @_;
+    my $cmd = "mv $journal logs";
+    system($cmd);
 }
 
 sub _init_options {

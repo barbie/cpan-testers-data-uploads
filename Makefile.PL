@@ -15,6 +15,7 @@ WriteMakefile(
         'File::Slurp'                       => 0,
         'Getopt::Long'                      => 0,
         'IO::File'                          => 0,
+        'IO::AtomicFile'                    => 0,
         'Net::NNTP'                         => 0,
 
         'Test::More'                        => 0,       # only for testing
