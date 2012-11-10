@@ -1,7 +1,10 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
-0.17	current
+	- spelling fixes. (thanks to Florian Schlichting & Gregor Herrmann).
+	- CHANGES => Changes.
+
+0.17	15/02/2011
 	- removed delete file test, as Win32 can't cope.
 	- added journalling to speed up backup generation.
 
