@@ -1,7 +1,5 @@
-#!perl
-
+#!/usr/bin/perl -w
 use strict;
-use warnings;
 
 use Test::More tests => 41;
 use CPAN::Testers::Data::Uploads;

@@ -1,7 +1,6 @@
-#!perl
-
+#!/usr/bin/perl -w
 use strict;
-use warnings;
+
 $|=1;
 
 use Test::More tests => 1;
