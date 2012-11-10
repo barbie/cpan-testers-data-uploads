@@ -6,6 +6,8 @@ Revision history for Perl distribution CPAN-Testers-Data-Uploads
         - change file dates changed to meet W3CDTF standards.
         - Artistic License v2 now sole license.
         - added META.json.
+        - added minimum perl version (5.006).
+        - reworked Makefile.PL for clarity.
 
 0.17    2011-02-15
         - removed delete file test, as Win32 can't cope.

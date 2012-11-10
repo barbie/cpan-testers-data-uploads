@@ -40,7 +40,7 @@
             "requires" : {
                 "perl": "5.006",
                 "Class::Accessor::Fast": "0",
-                "CPAN::DistnameInfo": "0",
+                "CPAN::DistnameInfo": "0.10",
                 "CPAN::Testers::Common::Article": "0",
                 "CPAN::Testers::Common::DBUtils": "0.08",
                 "Config::IniFiles": "0",
