@@ -5,7 +5,7 @@ abstract:                 CPAN Testers Uploads Database Generator
 author:
   - Barbie <barbie@cpan.org>
 
-license:                  perl
+license:                  artistic_2
 distribution_type:        module
 installdirs:              site
 
