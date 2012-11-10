@@ -8,6 +8,7 @@ lib/CPAN/Testers/Data/Uploads.pm
 LICENSE
 Makefile.PL
 MANIFEST
+META.json
 META.yml
 README
 t/01base.t

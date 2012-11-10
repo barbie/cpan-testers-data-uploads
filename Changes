@@ -4,6 +4,8 @@ Revision history for Perl distribution CPAN-Testers-Data-Uploads
         - spelling fixes. (thanks to Florian Schlichting & Gregor Herrmann).
         - CHANGES => Changes.
         - change file dates changed to meet W3CDTF standards.
+        - Artistic License v2 now sole license.
+        - added META.json.
 
 0.17    2011-02-15
         - removed delete file test, as Win32 can't cope.
