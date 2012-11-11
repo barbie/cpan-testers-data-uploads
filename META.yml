@@ -10,31 +10,33 @@ distribution_type:        module
 installdirs:              site
 
 requires:
-  perl:                             5.006
-  Class::Accessor::Fast:            0
-  CPAN::DistnameInfo:               0.10
-  CPAN::Testers::Common::Article:   0
-  CPAN::Testers::Common::DBUtils:   0
-  Config::IniFiles:                 0
-  DBD::mysql:                       0
-  DBD::SQLite:                      0
-  File::Basename:                   0
-  File::Find::Rule:                 0
-  File::Path:                       0
-  File::Slurp:                      0
-  Getopt::Long:                     0
-  IO::File:                         0
-  IO::AtomicFile:                   0
-  Net::NNTP:                        0
+  perl:                           5.006
+  Class::Accessor::Fast:          0
+  CPAN::DistnameInfo:             0.10
+  CPAN::Testers::Common::Article: 0
+  CPAN::Testers::Common::DBUtils: 0
+  Config::IniFiles:               0
+  DBD::mysql:                     0
+  DBD::SQLite:                    0
+  File::Basename:                 0
+  File::Find::Rule:               0
+  File::Path:                     0
+  File::Slurp:                    0
+  Getopt::Long:                   0
+  IO::File:                       0
+  IO::AtomicFile:                 0
+  Net::NNTP:                      0
 recommends:
-  Test::More:                       0.70
-  Test::Pod:                        1.00
-  Test::Pod::Coverage:              0.08
-  Test::CPAN::Meta:                 0.12
+  Test::CPAN::Meta:               0
+  Test::CPAN::Meta::JSON:         0
+  Test::Database:                 0
+  Test::Pod:                      1.00
+  Test::Pod::Coverage:            0.08
 build_requires:
-  Test::More:                       0.01
-  Archive::Extract:                 0
-  Archive::Zip:                     0
+  Archive::Extract:               0
+  Archive::Zip:                   0
+  Test::More:                     0.70
+  Test::Trap:                     0
 
 provides:
   CPAN::Testers::Data::Uploads:

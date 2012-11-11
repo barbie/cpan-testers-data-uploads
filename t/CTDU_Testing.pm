@@ -5,8 +5,6 @@ use warnings;
 
 use CPAN::Testers::Data::Uploads;
 use File::Path;
-use File::Temp;
-use File::Find;
 
 sub getObj {
   my %opts = @_;
@@ -41,13 +39,6 @@ sub whackDir {
   return 1;
 }
 
-sub listFiles {
-  my $dir = shift;
-  my @files;
-  find({ wanted => sub { push @files, File::Spec->abs2rel($File::Find::name,$dir) if -f $_ } }, $dir);
-  return sort @files;
-}
-
 1;
 
 __DATA__
@@ -55,7 +46,7 @@ __DATA__
 [MASTER]
 BACKPAN=t/_DBDIR/BACKPAN/authors/id
 CPAN=t/_DBDIR/CPAN/authors/id
-logfile=logs/uploads.log
+logfile=t/_DBDIR/uploads.log
 lastfile=t/_DBDIR/lastid.txt
 
 [UPLOADS]

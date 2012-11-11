@@ -1,48 +1,176 @@
 #!/usr/bin/perl -w
 use strict;
 
-use Test::More tests => 1;
+#----------------------------------------------------------------------------
+# Library Modules
+
+use Test::More tests => 2;
 use CPAN::Testers::Common::DBUtils;
 use File::Path;
 use File::Basename;
 
-my $f = 't/_DBDIR/test.db';
-unlink $f if -f $f;
-mkpath( dirname($f) );
+#----------------------------------------------------------------------------
+# Tests
 
-my $dbh = CPAN::Testers::Common::DBUtils->new(driver => 'SQLite', database => $f);
-$dbh->do_query(q{
-    CREATE TABLE `uploads` (
-        `type`        text    NOT NULL,
-        `author`      text    NOT NULL,
-        `dist`        text    NOT NULL,
-        `version`     text    NOT NULL,
-        `filename`    text    NOT NULL,
-        `released`    int     NOT NULL,
-        PRIMARY KEY  (`author`,`dist`,`version`)
-    );
-});
+eval "use Test::Database";
+plan skip_all => "Test::Database required for DB testing" if($@);
 
-$dbh->do_query(q{
-    CREATE TABLE `uploads_failed` (
-        source      text NOT NULL,
-        type        text,
-        dist        text,
-        version     text,
-        file        text,
-        pause       text,
-        created     int,
-        PRIMARY KEY  (source)
-    );
-});
+#plan 'no_plan';
 
-while(<DATA>){
-  chomp;
-  $dbh->do_query('INSERT INTO uploads ( type, author, dist, version, filename, released ) VALUES ( ?, ?, ?, ?, ?, ? )', split(/\|/,$_) );
+my $td;
+if($td = Test::Database->handle( 'mysql' )) {
+    create_mysql_databases($td);
+} elsif($td = Test::Database->handle( 'SQLite' )) {
+    create_sqlite_databases($td);
 }
 
-my @ct = $dbh->get_query('array','select count(*) from uploads');
-is($ct[0]->[0], 63, "row ct");
+SKIP: {
+    skip "No supported databases available", 2  unless($td);
+
+    my %opts;
+    ($opts{dsn}, $opts{dbuser}, $opts{dbpass}) =  $td->connection_info();
+    ($opts{driver})    = $opts{dsn} =~ /dbi:([^;:]+)/;
+    ($opts{database})  = $opts{dsn} =~ /database=([^;]+)/;
+    ($opts{database})  = $opts{dsn} =~ /dbname=([^;]+)/     unless($opts{database});
+    ($opts{dbhost})    = $opts{dsn} =~ /host=([^;]+)/;
+    ($opts{dbport})    = $opts{dsn} =~ /port=([^;]+)/;
+    my %options = map {my $v = $opts{$_}; defined($v) ? ($_ => $v) : () }
+                        qw(driver database dbfile dbhost dbport dbuser dbpass);
+
+    create_config(\%options);
+
+    # create new instance from Test::Database object
+    my $ct = CPAN::Testers::Common::DBUtils->new(%options);
+    isa_ok($ct,'CPAN::Testers::Common::DBUtils');
+
+    # insert records
+    my $sql = 'INSERT INTO uploads (type,author,dist,version,filename,released) VALUES (?,?,?,?,?,?)';
+    while(<DATA>){
+        s/\s+$//;
+        $ct->do_query( $sql, split(/\|/,$_) );
+    }
+
+    my @rows = $ct->get_query('hash','select count(*) as count from uploads');
+    is($rows[0]->{count}, 63, "row count for uploads");
+}
+
+sub create_config {
+    my $options = shift;
+
+    # main config
+    my $f = 't/_DBDIR/test-config.ini';
+    unlink $f if -f $f;
+    mkpath( dirname($f) );
+
+    my $dbcfg = join("\n", map { "$_=$options->{$_}" } grep { $options->{$_}} qw(driver database dbfile dbhost dbport dbuser dbpass) );
+
+    my $fh = IO::File->new($f,'w+') or return;
+    print $fh <<PRINT;
+[MASTER]
+BACKPAN=t/_DBDIR/BACKPAN/authors/id
+CPAN=t/_DBDIR/CPAN/authors/id
+logfile=t/_DBDIR/upload.log
+logclean=1
+
+; database configuration
+
+[CPANSTATS]
+$dbcfg
+
+[BACKUPS]
+drivers=<<EOT
+SQLite
+CSV
+EOT
+
+[SQLite]
+driver=SQLite
+database=t/_DBDIR/uploads.db
+
+[CSV]
+driver=CSV
+dbfile=t/_DBDIR/uploads.csv
+
+PRINT
+
+    $fh->close;
+}
+
+sub create_sqlite_databases {
+    my $db = shift;
+
+    my @create_cpanstats = (
+        'PRAGMA auto_vacuum = 1',
+	    'DROP TABLE IF EXISTS `uploads`',
+        'CREATE TABLE `uploads` (
+            `type`        text    NOT NULL,
+            `author`      text    NOT NULL,
+            `dist`        text    NOT NULL,
+            `version`     text    NOT NULL,
+            `filename`    text    NOT NULL,
+            `released`    int     NOT NULL,
+            PRIMARY KEY  (`author`,`dist`,`version`)
+        )',
+	    'DROP TABLE IF EXISTS `uploads_failed`',
+        'CREATE TABLE `uploads_failed` (
+            source      text NOT NULL,
+            type        text,
+            dist        text,
+            version     text,
+            file        text,
+            pause       text,
+            created     int,
+            PRIMARY KEY  (source)
+        )'
+    );
+
+    dosql($db,\@create_cpanstats);
+}
+
+sub create_mysql_databases {
+    my $db = shift;
+
+    my @create_cpanstats = (
+	    'DROP TABLE IF EXISTS `uploads`',
+        'CREATE TABLE `uploads` (
+            `type`      varchar(10)     NOT NULL,
+            `author`    varchar(32)     NOT NULL,
+            `dist`      varchar(255)    NOT NULL,
+            `version`   varchar(255)    NOT NULL,
+            `filename`  varchar(255)    NOT NULL,
+            `released`  int(16)         NOT NULL,
+            PRIMARY KEY (`author`,`dist`,`version`)
+        )',
+	    'DROP TABLE IF EXISTS `uploads_failed`',
+        'CREATE TABLE `uploads_failed` (
+            `source`    varchar(255)        NOT NULL,
+            `type`      varchar(255)        DEFAULT NULL,
+            `dist`      varchar(255)        DEFAULT NULL,
+            `version`   varchar(255)        DEFAULT NULL,
+            `file`      varchar(255)        DEFAULT NULL,
+            `pause`     varchar(255)        DEFAULT NULL,
+            `created`   int(11) unsigned    DEFAULT NULL,
+            PRIMARY KEY (`source`)
+        )'
+    );
+
+    dosql($db,\@create_cpanstats);
+}
+
+sub dosql {
+    my ($db,$sql) = @_;
+
+    for(@$sql) {
+        #diag "SQL: [$db] $_";
+        eval { $db->dbh->do($_); };
+        if($@) {
+            diag $@;
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 
 #select * from uploads where dist in ('AEAE', 'AI-NeuralNet-BackProp', 'AI-NeuralNet-Mesh', 'AI-NeuralNet-SOM', 'AOL-TOC', 'Abstract-Meta-Class', 'Acme', 'Acme-Anything', 'Acme-BOPE', 'Acme-Brainfuck', 'Acme-Buffy', 'Acme-CPANAuthors-Canadian', 'Acme-CPANAuthors-CodeRepos', 'Acme-CPANAuthors-French', 'Acme-CPANAuthors-Japanese');

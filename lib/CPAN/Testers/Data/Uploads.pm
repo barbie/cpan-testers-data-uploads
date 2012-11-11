@@ -262,8 +262,7 @@ sub help {
     if($full) {
         print <<HERE;
 
-Usage: $0 \\
-         -config=<file> [-g] [-r] [-u] [-b] [-h] [-v]
+Usage: $0 --config=<file> [-g] [-r] [-u] [-b] [-h] [-v]
 
   --config=<file>   database configuration file
   -g                generate new database
