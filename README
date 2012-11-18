@@ -19,6 +19,7 @@ The distribution requires the following modules:
   File::Path
   File::Slurp
   Getopt::Long
+  IO::AtomicFile
   IO::File
   Net::NNTP
 

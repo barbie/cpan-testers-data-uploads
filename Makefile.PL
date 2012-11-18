@@ -25,8 +25,8 @@ WriteMakefile(
         'File::Path'                        => '0',
         'File::Slurp'                       => '0',
         'Getopt::Long'                      => '0',
-        'IO::File'                          => '0',
         'IO::AtomicFile'                    => '0',
+        'IO::File'                          => '0',
         'Net::NNTP'                         => '0',
 
         'DBD::mysql'                        => '0',
