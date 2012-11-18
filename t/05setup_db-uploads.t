@@ -4,18 +4,17 @@ use strict;
 #----------------------------------------------------------------------------
 # Library Modules
 
-use Test::More tests => 2;
 use CPAN::Testers::Common::DBUtils;
 use File::Path;
 use File::Basename;
+use Test::More;
 
 #----------------------------------------------------------------------------
 # Tests
 
 eval "use Test::Database";
-plan skip_all => "Test::Database required for DB testing" if($@);
-
-#plan 'no_plan';
+if($@)  { plan skip_all => "Test::Database required for DB testing"; }
+else    { plan tests    => 2 }
 
 my $td;
 if($td = Test::Database->handle( 'mysql' )) {
@@ -67,6 +66,7 @@ sub create_config {
     my $fh = IO::File->new($f,'w+') or return;
     print $fh <<PRINT;
 [MASTER]
+lastfile=t/_DBDIR/lastid.txt
 BACKPAN=t/_DBDIR/BACKPAN/authors/id
 CPAN=t/_DBDIR/CPAN/authors/id
 logfile=t/_DBDIR/upload.log
@@ -74,7 +74,7 @@ logclean=1
 
 ; database configuration
 
-[CPANSTATS]
+[UPLOADS]
 $dbcfg
 
 [BACKUPS]
@@ -103,24 +103,41 @@ sub create_sqlite_databases {
         'PRAGMA auto_vacuum = 1',
 	    'DROP TABLE IF EXISTS `uploads`',
         'CREATE TABLE `uploads` (
-            `type`        text    NOT NULL,
-            `author`      text    NOT NULL,
-            `dist`        text    NOT NULL,
-            `version`     text    NOT NULL,
-            `filename`    text    NOT NULL,
-            `released`    int     NOT NULL,
+            `type`      text    NOT NULL,
+            `author`    text    NOT NULL,
+            `dist`      text    NOT NULL,
+            `version`   text    NOT NULL,
+            `filename`  text    NOT NULL,
+            `released`  int     NOT NULL,
             PRIMARY KEY  (`author`,`dist`,`version`)
         )',
 	    'DROP TABLE IF EXISTS `uploads_failed`',
         'CREATE TABLE `uploads_failed` (
-            source      text NOT NULL,
-            type        text,
-            dist        text,
-            version     text,
-            file        text,
-            pause       text,
-            created     int,
-            PRIMARY KEY  (source)
+            `source`    text    NOT NULL,
+            `type`      text,
+            `dist`      text,
+            `version`   text,
+            `file`      text,
+            `pause`     text,
+            `created`   int,
+            PRIMARY KEY  (`source`)
+        )',
+	    'DROP TABLE IF EXISTS `ixlatest`',
+        'CREATE TABLE `ixlatest` (
+            `dist`      text    NOT NULL,
+            `version`   text    NOT NULL,
+            `released`  int     NOT NULL,
+            `author`    text    NOT NULL,
+            `oncpan`    int     DEFAULT 0,
+            PRIMARY KEY (`dist`,`author`)
+        )',
+	    'DROP TABLE IF EXISTS `page_requests`',
+        'CREATE TABLE `page_requests` (
+            `type`      text        NOT NULL,
+            `name`      text        NOT NULL,
+            `weight`    int         NOT NULL,
+            `created`   timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `id`        int         DEFAULT 0
         )'
     );
 
@@ -133,12 +150,12 @@ sub create_mysql_databases {
     my @create_cpanstats = (
 	    'DROP TABLE IF EXISTS `uploads`',
         'CREATE TABLE `uploads` (
-            `type`      varchar(10)     NOT NULL,
-            `author`    varchar(32)     NOT NULL,
-            `dist`      varchar(255)    NOT NULL,
-            `version`   varchar(255)    NOT NULL,
-            `filename`  varchar(255)    NOT NULL,
-            `released`  int(16)         NOT NULL,
+            `type`      varchar(10)         NOT NULL,
+            `author`    varchar(32)         NOT NULL,
+            `dist`      varchar(255)        NOT NULL,
+            `version`   varchar(255)        NOT NULL,
+            `filename`  varchar(255)        NOT NULL,
+            `released`  int(16)             NOT NULL,
             PRIMARY KEY (`author`,`dist`,`version`)
         )',
 	    'DROP TABLE IF EXISTS `uploads_failed`',
@@ -151,7 +168,30 @@ sub create_mysql_databases {
             `pause`     varchar(255)        DEFAULT NULL,
             `created`   int(11) unsigned    DEFAULT NULL,
             PRIMARY KEY (`source`)
+        )',
+	    'DROP TABLE IF EXISTS `ixlatest`',
+        'CREATE TABLE `ixlatest` (
+            `dist`      varchar(255)        NOT NULL,
+            `version`   varchar(255)        NOT NULL,
+            `released`  int(16)             NOT NULL,
+            `author`    varchar(32)         NOT NULL,
+            `oncpan`    tinyint(4)          DEFAULT 0,
+            PRIMARY KEY (`dist`,`author`),
+            KEY `IXDISTX` (`dist`),
+            KEY `IXAUTHX` (`author`)
+        )',
+	    'DROP TABLE IF EXISTS `page_requests`',
+        'CREATE TABLE `page_requests` (
+            `type`      varchar(8)          NOT NULL,
+            `name`      varchar(255)        NOT NULL,
+            `weight`    int(2) unsigned     NOT NULL,
+            `created`   timestamp           NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `id`        int(10) unsigned    DEFAULT 0,
+            KEY `IXNAME` (`name`),
+            KEY `IXTYPE` (`type`),
+            KEY `IXID` (`id`)
         )'
+    
     );
 
     dosql($db,\@create_cpanstats);

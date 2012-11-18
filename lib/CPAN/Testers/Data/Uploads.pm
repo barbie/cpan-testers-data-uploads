@@ -49,7 +49,7 @@ my %phrasebook = (
     'InsertIndex'       => 'INSERT INTO ixlatest (oncpan,author,version,released,dist) VALUES (?,?,?,?,?)',
     'AmendIndex'        => 'UPDATE ixlatest SET oncpan=? WHERE author=? AND version=? AND dist=?',
     'UpdateIndex'       => 'UPDATE ixlatest SET oncpan=?,version=?,released=? WHERE dist=? AND author=?',
-    'BuildAuthorIndex'  => 'SELECT x.author,x.version,x.released,x.dist,x.type FROM (SELECT dist, MAX(released) AS maxvalue FROM uploads WHERE author=? GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.maxvalue ORDER BY released',
+    'BuildAuthorIndex'  => 'SELECT x.author,x.version,x.released,x.dist,x.type FROM (SELECT dist, MAX(released) AS mv FROM uploads WHERE author=? GROUP BY dist) AS y INNER JOIN uploads AS x ON x.dist=y.dist AND x.released=y.mv ORDER BY released',
     'GetAllAuthors'     => 'SELECT distinct(author) FROM uploads',
 
     'InsertRequest'     => 'INSERT INTO page_requests (type,name,weight) VALUES (?,?,5)',
@@ -124,7 +124,7 @@ sub reindex {
         $self->_log(".. author = $author->{author}");
         my @rows = $db->get_query('hash',$phrasebook{'BuildAuthorIndex'},$author->{author});
         for my $row (@rows) {
-        $self->_log(".... dist = $row->{dist}");
+        $self->_log(".... dist = $row->{dist}, latest = $row->{version}");
             $db->do_query($phrasebook{'DeleteIndex'},$row->{dist},$row->{author});
             $db->do_query($phrasebook{'InsertIndex'},$oncpan{$row->{type}},$row->{author},$row->{version},$row->{released},$row->{dist});
         }
