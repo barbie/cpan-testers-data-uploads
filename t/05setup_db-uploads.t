@@ -69,6 +69,7 @@ sub create_config {
 lastfile=t/_DBDIR/lastid.txt
 BACKPAN=t/_DBDIR/BACKPAN/authors/id
 CPAN=t/_DBDIR/CPAN/authors/id
+journal=t/_DBDIR/journal.sql
 logfile=t/_DBDIR/upload.log
 logclean=1
 

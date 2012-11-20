@@ -9,6 +9,7 @@ Revision history for Perl distribution CPAN-Testers-Data-Uploads
         - added minimum perl version (5.006).
         - reworked Makefile.PL for clarity.
         - more tests.
+        - journal file now configurable.
 
 0.17    2011-02-15
         - removed delete file test, as Win32 can't cope.

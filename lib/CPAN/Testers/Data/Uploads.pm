@@ -86,7 +86,7 @@ sub DESTROY {
 }
 
 __PACKAGE__->mk_accessors(
-    qw( uploads backpan cpan logfile logclean lastfile
+    qw( uploads backpan cpan logfile logclean lastfile journal
         mgenerate mupdate mbackup mreindex ));
 
 sub process {
@@ -263,6 +263,8 @@ sub help {
         print <<HERE;
 
 Usage: $0 --config=<file> [-g] [-r] [-u] [-b] [-h] [-v]
+        [--logfile=<file>] [--logclean] 
+        [--lastmail=<file>] [--journal=<file>]
 
   --config=<file>   database configuration file
   -g                generate new database
@@ -271,6 +273,10 @@ Usage: $0 --config=<file> [-g] [-r] [-u] [-b] [-h] [-v]
   -b                backup database to portable files
   -h                this help screen
   -v                program version
+  --logfile=<file>  trace log file
+  --logclean        overwrite exisiting log file
+  --lastmail=<file> last id file
+  --journal=<file>  SQL journal file path
 
 Notes:
   * A generate request automatically includes a reindex.
@@ -370,13 +376,13 @@ sub _lastid {
 sub _open_journal {
     my $self = shift;
     my @now  = localtime(time);
-    my $file = sprintf "%s.%04d%02d%02d%02d%02d%02d", JOURNAL, $now[5]+1900,$now[4]+1,$now[3],$now[2],$now[1],$now[0];
-    $self->{journal} = IO::AtomicFile->new($file,'w+') or die "Cannot write to journal file [$file]: $!\n";
+    my $file = sprintf "%s.%04d%02d%02d%02d%02d%02d", $self->journal, $now[5]+1900,$now[4]+1,$now[3],$now[2],$now[1],$now[0];
+    $self->{current} = IO::AtomicFile->new($file,'w+') or die "Cannot write to journal file [$file]: $!\n";
 }
 
 sub _write_journal {
     my ($self,$phrase,@args) = @_;
-    my $fh = $self->{journal};
+    my $fh = $self->{current};
 
     print $fh "$phrase," . join(',',@args) . "\n";
 
@@ -386,11 +392,11 @@ sub _write_journal {
 
 sub _close_journal {
     my $self = shift;
-    $self->{journal}->close;
+    $self->{current}->close;
 }
 
 sub _find_journals {
-    my @files = glob(JOURNAL . '.*');
+    my @files = glob($self->journal . '.*');
     return @files;
 }
 
@@ -424,6 +430,7 @@ sub _init_options {
         'update|u',
         'reindex|r',
         'backup|b',
+        'journal|j=s',
         'logfile|l=s',
         'logclean=s',
         'lastfile=s',
@@ -470,10 +477,11 @@ sub _init_options {
     $self->logfile(  $hash{logfile}  || $options{logfile}  || $cfg->val('MASTER','logfile'  ) || LOGFILE  );
     $self->logclean( $hash{logclean} || $options{logclean} || $cfg->val('MASTER','logclean' ) || 0        );
     $self->lastfile( $hash{lastfile} || $options{lastfile} || $cfg->val('MASTER','lastfile' ) || LASTMAIL );
+    $self->journal(  $hash{journal}  || $options{journal}  || $cfg->val('MASTER','journal'  ) || JOURNAL  );
 
     # configure upload DB
     $self->help(1,"No configuration for UPLOADS database") unless($cfg->SectionExists('UPLOADS'));
-    my %opts = map {$_ => ($cfg->val('UPLOADS',$_) || undef);} qw(driver database dbfile dbhost dbport dbuser dbpass);
+    my %opts = map {$_ => ($cfg->val('UPLOADS',$_) || undef)} qw(driver database dbfile dbhost dbport dbuser dbpass);
     my $db = CPAN::Testers::Common::DBUtils->new(%opts);
     $self->help(1,"Cannot configure UPLOADS database") unless($db);
     $self->uploads($db);
@@ -487,7 +495,7 @@ sub _init_options {
         for my $driver (@drivers) {
             $self->help(1,"No configuration for backup option '$driver'")   unless($cfg->SectionExists($driver));
 
-            my %opt = map {$_ => $cfg->val($driver,$_);} qw(driver database dbfile dbhost dbport dbuser dbpass);
+            my %opt = map {$_ => ($cfg->val($driver,$_) || undef)} qw(driver database dbfile dbhost dbport dbuser dbpass);
             $backups{$driver}{'exists'} = $driver =~ /SQLite/i ? -f $opt{database} : 1;
 
             # CSV is a bit of an oddity!
@@ -638,6 +646,7 @@ Path to the CPAN archive directory.
 =item * logfile
 
 Path to output log file for progress and debugging messages.
+Default file: '_uploads.log'.
 
 =item * logclean
 
@@ -646,7 +655,13 @@ append any messages.
 
 =item * lastfile
 
-Path to the file containing the last NNTPID processed.
+Path to the file containing the last NNTPID processed. 
+Default file: '_lastmail'.
+
+=item * journal
+
+Path to the journal file. 
+Default file: '_journal.sql'.
 
 =item * mgenerate
 
