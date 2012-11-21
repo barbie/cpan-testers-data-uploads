@@ -10,6 +10,7 @@ Revision history for Perl distribution CPAN-Testers-Data-Uploads
         - reworked Makefile.PL for clarity.
         - more tests.
         - journal file now configurable.
+        - check available drivers for backups.
 
 0.17    2011-02-15
         - removed delete file test, as Win32 can't cope.

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
 
-# testing proces with idfile
+# testing the reindex process
 
 use CPAN::Testers::Data::Uploads;
 use Test::More tests => 9;
@@ -45,20 +45,6 @@ SKIP: {
     is($rows[0]->{count}, 17, "row count for ixlatest");
     @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','Acme-CPANAuthors-Japanese');
     is($rows[0]->{version}, '0.090202', "new index version");
-}
-
-sub lastid {
-    my $lastid = 0;
-
-    if(-f $idfile) {
-        if(my $fh = IO::File->new($idfile,'r')) {
-            my @lines = <$fh>;
-            ($lastid) = $lines[0] =~ /(\d+)/;
-            $fh->close;
-        }
-    }
-
-    return $lastid;
 }
 
 sub insert_records {
