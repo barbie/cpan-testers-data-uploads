@@ -16,6 +16,7 @@ use CPAN::DistnameInfo;
 use CPAN::Testers::Common::DBUtils;
 use CPAN::Testers::Common::Article;
 use Config::IniFiles;
+use DBI;
 use File::Basename;
 use File::Find::Rule;
 use File::Path;
@@ -396,6 +397,7 @@ sub _close_journal {
 }
 
 sub _find_journals {
+    my $self = shift;
     my @files = glob($self->journal . '.*');
     return @files;
 }
@@ -490,9 +492,14 @@ sub _init_options {
     if($options{backup}) {
         $self->help(1,"No configuration for BACKUPS with backup option")    unless($cfg->SectionExists('BACKUPS'));
 
-        $self->mbackup(1);
+        my %available_drivers = map { $_ => 1 } DBI->available_drivers;
         my @drivers = $cfg->val('BACKUPS','drivers');
         for my $driver (@drivers) {
+            unless($available_drivers{$driver}) {
+                warn "No DBI support for '$driver', ignoring\n";
+                next;
+            }
+
             $self->help(1,"No configuration for backup option '$driver'")   unless($cfg->SectionExists($driver));
 
             my %opt = map {$_ => ($cfg->val($driver,$_) || undef)} qw(driver database dbfile dbhost dbport dbuser dbpass);
@@ -509,6 +516,8 @@ sub _init_options {
             $backups{$driver}{db} = CPAN::Testers::Common::DBUtils->new(%opt);
             $self->help(1,"Cannot configure BACKUPS database for '$driver'")   unless($backups{$driver}{db});
         }
+
+        $self->mbackup(1)   if(keys %backups);
     }
 }
 

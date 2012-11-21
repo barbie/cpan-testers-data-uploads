@@ -20,6 +20,7 @@ WriteMakefile(
         'CPAN::Testers::Common::Article'    => '0',
         'CPAN::Testers::Common::DBUtils'    => '0.08',
         'Config::IniFiles'                  => '0',
+        'DBI'                               => '0',
         'File::Basename'                    => '0',
         'File::Find::Rule'                  => '0',
         'File::Path'                        => '0',
