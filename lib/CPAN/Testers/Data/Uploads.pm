@@ -209,6 +209,13 @@ sub backup {
     my $db = $self->uploads;
 
     if(my @journals = $self->_find_journals()) {
+        for my $driver (keys %backups) {
+            if($driver =~ /(CSV|SQLite)/i && !$backups{$driver}{'exists'}) {
+                $backups{$driver}{db}->do_query($phrasebook{'CreateTable'});
+                $backups{$driver}{'exists'} = 1;
+            }
+        }
+        
         for my $journal (@journals) {
             next    if($journal =~ /TMP$/); # don't process active journals
             $self->_log("Processing journal $journal");
@@ -229,6 +236,7 @@ sub backup {
                 $backups{$driver}{db}->do_query($phrasebook{'DeleteAll'});
             } elsif($driver =~ /(CSV|SQLite)/i) {
                 $backups{$driver}{db}->do_query($phrasebook{'CreateTable'});
+                $backups{$driver}{'exists'} = 1;
             }
         }
 
