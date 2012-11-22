@@ -12,6 +12,7 @@ The distribution requires the following modules:
   CPAN::Testers::Common::Article
   CPAN::Testers::Common::DBUtils
   Config::IniFiles
+  DBI
   DBD::mysql
   DBD::SQLite
   File::Basename
