@@ -63,7 +63,7 @@ SKIP: {
 
     $obj->process;
 
-    is(lastid(),72870,'.. lastid is 0 after process');
+    is(lastid(),72870,'.. lastid is updated after process');
 
     @rows = $dbh->get_query('hash','select count(*) as count from uploads');
     is($rows[0]->{count}, 67, "row count for uploads");
