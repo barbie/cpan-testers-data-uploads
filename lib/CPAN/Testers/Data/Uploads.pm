@@ -173,6 +173,7 @@ sub update {
     for(my $id = $lastid+1; $id <= $last; $id++) {
         #$self->_log("NNTP ID = $id");
         my $article = join "", @{$nntp->article($id) || []};
+        next    unless($article);
         my $object = CPAN::Testers::Common::Article->new($article);
         next    unless($object);
         $self->_log("... [$id] subject=".($object->subject()));
