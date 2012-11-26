@@ -137,7 +137,7 @@ sub create_sqlite_databases {
             `type`      text        NOT NULL,
             `name`      text        NOT NULL,
             `weight`    int         NOT NULL,
-            `created`   timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `created`   timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `id`        int         DEFAULT 0
         )'
     );
