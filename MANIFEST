@@ -31,3 +31,7 @@ t/95changedate.t
 t/96metatest.t
 t/CTDU_Testing.pm
 t/Expected.zip
+t/nntp/31085.txt
+t/nntp/13394.txt
+t/nntp/72870.txt
+t/nntp/34358.txt
