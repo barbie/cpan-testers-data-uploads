@@ -1,6 +1,7 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.18    2012-11-26
         - spelling fixes. (thanks to Florian Schlichting & Gregor Herrmann).
         - CHANGES => Changes.
         - change file dates changed to meet W3CDTF standards.
