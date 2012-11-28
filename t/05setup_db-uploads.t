@@ -6,11 +6,12 @@ use strict;
 
 use CPAN::Testers::Common::DBUtils;
 use File::Path;
-use File::Basename;
 use Test::More;
 
 #----------------------------------------------------------------------------
 # Tests
+
+mkpath( 't/_DBDIR' );
 
 eval "use Test::Database";
 if($@)  { plan skip_all => "Test::Database required for DB testing"; }
@@ -59,7 +60,6 @@ sub create_config {
     # main config
     my $f = 't/_DBDIR/test-config.ini';
     unlink $f if -f $f;
-    mkpath( dirname($f) );
 
     my $dbcfg = join("\n", map { "$_=$options->{$_}" } grep { $options->{$_}} qw(driver database dbfile dbhost dbport dbuser dbpass) );
 

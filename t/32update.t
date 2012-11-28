@@ -44,39 +44,43 @@ my %articles = (
     4 => 't/nntp/34358.txt',
 );
 
-my $obj;
-eval { $obj = CPAN::Testers::Data::Uploads->new( config => $config, update => 1 ) };
-isa_ok($obj,'CPAN::Testers::Data::Uploads');
-
 SKIP: {
-    skip "Problem creating object", 11 unless($obj);
+    skip "Test::Database required for DB testing", 12 unless(-f $config);
 
-    my $dbh = $obj->uploads;
-    ok($dbh);
+    my $obj;
+    eval { $obj = CPAN::Testers::Data::Uploads->new( config => $config, update => 1 ) };
+    isa_ok($obj,'CPAN::Testers::Data::Uploads');
 
-    is(lastid(),0,'.. lastid is 0 from start');
+    SKIP: {
+        skip "Problem creating object", 11 unless($obj);
 
-    my @rows = $dbh->get_query('hash','select count(*) as count from uploads');
-    is($rows[0]->{count}, 63, "row count for uploads");
-    @rows = $dbh->get_query('hash','select count(*) as count from ixlatest');
-    is($rows[0]->{count}, 17, "row count for ixlatest");
+        my $dbh = $obj->uploads;
+        ok($dbh);
 
-    $obj->process;
+        is(lastid(),0,'.. lastid is 0 from start');
 
-    is(lastid(),72870,'.. lastid is updated after process');
+        my @rows = $dbh->get_query('hash','select count(*) as count from uploads');
+        is($rows[0]->{count}, 63, "row count for uploads");
+        @rows = $dbh->get_query('hash','select count(*) as count from ixlatest');
+        is($rows[0]->{count}, 17, "row count for ixlatest");
 
-    @rows = $dbh->get_query('hash','select count(*) as count from uploads');
-    is($rows[0]->{count}, 66, "row count for uploads");
-    @rows = $dbh->get_query('hash','select count(*) as count from ixlatest');
-    is($rows[0]->{count}, 18, "row count for ixlatest");
-    @rows = $dbh->get_query('hash','select count(*) as count from page_requests');
-    is($rows[0]->{count}, 16, "row count for page_requests");
-    @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','Acme-CPANAuthors-French');
-    is($rows[0]->{version}, '0.07', "old index version not overwritten");
-    @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','Acme-CPANAuthors-Japanese');
-    is($rows[0]->{version}, '0.090911', "old index version");
-    @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','CPAN-Testers-Data-Uploads');
-    is($rows[0]->{version}, '0.12', "new index version");
+        $obj->process;
+
+        is(lastid(),72870,'.. lastid is updated after process');
+
+        @rows = $dbh->get_query('hash','select count(*) as count from uploads');
+        is($rows[0]->{count}, 66, "row count for uploads");
+        @rows = $dbh->get_query('hash','select count(*) as count from ixlatest');
+        is($rows[0]->{count}, 18, "row count for ixlatest");
+        @rows = $dbh->get_query('hash','select count(*) as count from page_requests');
+        is($rows[0]->{count}, 16, "row count for page_requests");
+        @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','Acme-CPANAuthors-French');
+        is($rows[0]->{version}, '0.07', "old index version not overwritten");
+        @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','Acme-CPANAuthors-Japanese');
+        is($rows[0]->{version}, '0.090911', "old index version");
+        @rows = $dbh->get_query('hash','select * from ixlatest where dist=?','CPAN-Testers-Data-Uploads');
+        is($rows[0]->{version}, '0.12', "new index version");
+    }
 }
 
 sub lastid {
