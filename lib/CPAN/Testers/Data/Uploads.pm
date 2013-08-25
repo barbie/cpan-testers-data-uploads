@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '0.18';
+$VERSION = '0.20';
 $|++;
 
 #----------------------------------------------------------------------------
@@ -313,7 +313,7 @@ sub _parse_archive {
     my $filename  = $dist->filename;  # "CPAN-DistnameInfo-0.02.tar.gz"
     my $date      = (stat($file))[9];
 
-    unless($name && $version && $cpanid && $date) {
+    unless($name && defined $version && $cpanid && $date) {
     	#$self->_log("PARSE: FAIL file=$file, $type => $name => $version => $cpanid => $date => $filename");
         $file =~ s!/opt/projects/CPAN/!!;
         $db->do_query($phrasebook{'ParseFailed'},$file,$type,$name,$version,$filename,$cpanid,$date);
@@ -774,9 +774,9 @@ F<http://wiki.cpantesters.org/>
 
 =head1 COPYRIGHT AND LICENSE
 
-  Copyright (C) 2008-2012 Barbie for Miss Barbell Productions.
+  Copyright (C) 2008-2013 Barbie for Miss Barbell Productions.
 
-  This module is free software; you can redistribute it and/or
+  This distribution is free software; you can redistribute it and/or
   modify it under the Artistic Licence v2.
 
 =cut

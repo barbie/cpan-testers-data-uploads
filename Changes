@@ -1,6 +1,12 @@
 Revision history for Perl distribution CPAN-Testers-Data-Uploads
 ================================================================
 
+0.20    2013-08-25
+        - fix to allow dists with version 0.
+
+0.19    2012-11-28
+        - fixed test suite when Test::Database is not installed.
+
 0.18    2012-11-26
         - spelling fixes. (thanks to Florian Schlichting & Gregor Herrmann).
         - CHANGES => Changes.
