@@ -51,10 +51,12 @@ no_index:
     - examples
 
 resources:
-  license:    http://dev.perl.org/licenses/
+  license:    http://www.perlfoundation.org/artistic_license_2_0
+  homepage:   http://devel.cpantesters.org
   bugtracker: http://rt.cpan.org/Public/Dist/Display.html?Name=CPAN-Testers-Data-Uploads
   repository: http://github.com/barbie/cpan-testers-data-uploads
+
 meta-spec:
    version:   1.4
    url:       http://module-build.sourceforge.net/META-spec-v1.4.html
-generated_by: Hand 1.0
+generated_by: The Hand of Barbie 1.0
